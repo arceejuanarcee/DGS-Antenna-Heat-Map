@@ -55,8 +55,8 @@ AZ_BIN_DEG = 5             # heatmap az bin width (degrees)
 EL_BIN_DEG = 5             # heatmap el bin width (degrees)
 
 # Filename patterns
-METRICS_RE = re.compile(r"^Metrics_(\d{4}-\d{2}-\d{2})_\d{2}-\d{2}-\d{2}\.log\.csv$", re.IGNORECASE)
-EVENTS_RE  = re.compile(r"^Events_(\d{4}-\d{2}-\d{2})_\d{2}-\d{2}-\d{2}\.log\.txt$", re.IGNORECASE)
+METRICS_RE = re.compile(r"^metrics_(\d{4}-\d{2}-\d{2})_\d{2}-\d{2}-\d{2}\.log\.csv$", re.IGNORECASE)
+EVENTS_RE  = re.compile(r"^events_(\d{4}-\d{2}-\d{2})_\d{2}-\d{2}-\d{2}\.log\.txt$", re.IGNORECASE)
 
 # Events line pattern: timestamp at start
 EVENT_LINE_RE = re.compile(
@@ -465,7 +465,7 @@ class App(tk.Tk):
         ax.set_yticks(rings)
         ax.set_yticklabels(["{}°".format(int(90-r)) for r in rings])
         ax.grid(True, alpha=0.35)
-        ax.set_title("Fault Frequency Heat Map (Az/El)", pad=18)
+        ax.set_title("Fault Frequency Heat Map (Az/El)")
 
     # -------- Folder + date --------
     def choose_root_folder(self):
@@ -474,15 +474,28 @@ class App(tk.Tk):
             return
 
         root = Path(folder)
-        events = root / "Events"
-        metrics = root / "Metrics"
+        events = None
+        metrics = None
 
-        if (not events.exists()) or (not metrics.exists()):
+        candidates_events = [root / "Events", root / "events"]
+        candidates_metrics = [root / "Metrics", root / "metrics"]
+
+        for p in candidates_events:
+            if p.exists() and p.is_dir():
+                events = p
+                break
+
+        for p in candidates_metrics:
+            if p.exists() and p.is_dir():
+                metrics = p
+                break
+
+        if (events is None) or (metrics is None):
             messagebox.showerror(
                 "Folder structure not found",
                 "Selected root folder must contain:\n"
-                "  Events/  (txt logs)\n"
-                "  Metrics/ (csv logs)\n\n"
+                " Events/ or events/ (txt logs)\n"
+                " Metrics/ or metrics/ (csv logs) \n\n"
                 "Selected: {}".format(str(root))
             )
             return
@@ -650,8 +663,8 @@ class App(tk.Tk):
     def _plot_fault_points(self, matched):
         if matched is None or matched.empty:
             return
-        theta = np.deg2rad(matched["az_deg"].to_numpy(dtype=float))
-        r = np.array([to_polar_r(e) for e in matched["el_deg"].to_numpy(dtype=float)], dtype=float)
+        theta = np.deg2rad(matched["az_deg"].values.astype(float))
+        r = np.array([to_polar_r(e) for e in matched["el_deg"].values.astype(float)], dtype=float)
         self.ax.scatter(theta, r, s=22, alpha=0.9)
 
     def _plot_heatmap_white_zero(self, matched):
@@ -666,8 +679,8 @@ class App(tk.Tk):
         az_edges = np.arange(0, 360 + az_bin, az_bin)
         el_edges = np.arange(0, 90 + el_bin, el_bin)
 
-        az = matched["az_deg"].to_numpy(dtype=float)
-        el = matched["el_deg"].to_numpy(dtype=float)
+        az = matched["az_deg"].values.astype(float)
+        el = matched["el_deg"].values.astype(float)
 
         H, az_e, el_e = np.histogram2d(az, el, bins=[az_edges, el_edges])
 
@@ -676,13 +689,17 @@ class App(tk.Tk):
 
         theta_edges = np.deg2rad(az_e)
         r_edges_desc = 90.0 - el_e
-        H_flip = np.flip(H_masked, axis=1)
+        H_flip = H_masked[:, ::-1]
         r_edges_asc = np.sort(r_edges_desc)
 
         T, R = np.meshgrid(theta_edges, r_edges_asc, indexing="ij")
 
-        cmap = plt.cm.Reds.copy()
-        cmap.set_bad(color="white")  # masked cells -> white
+        cmap = plt.get_cmap("Reds")
+        try:
+            cmap.set_bad("white")
+        except Exception:
+            pass
+
 
         self.ax.pcolormesh(
             T, R, H_flip,
