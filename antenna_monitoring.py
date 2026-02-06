@@ -362,8 +362,11 @@ def extract_events(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
         base.loc[base["etype"] == "", "etype"] = inferred[base["etype"] == ""]
 
     # labels/positions
-    base["day_label"] = base["dt"].dt.strftime("%m-%d-%y")
-    base.loc[base["dt"].isna() & base["dt_start"].notna(), "day_label"] = base["dt_start"].dt.strftime("%m-%d-%y")
+    base["day_label"] = base["dt"].dt.strftime("%m-%d-%Y")
+    base.loc[base["dt"].isna() & base["dt_start"].notna(), "day_label"] = base["dt_start"].dt.strftime("%m-%d-%Y")
+    # For correct chronological sorting on the x-axis
+    base["day_dt"] = base["dt"].dt.date
+    base.loc[base["dt"].isna() & base["dt_start"].notna(), "day_dt"] = base["dt_start"].dt.date
     base["hour_float"] = base["dt"].dt.hour.add(base["dt"].dt.minute.div(60)).astype(float)
 
     # ---- FAULTS
@@ -384,7 +387,8 @@ def extract_events(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     if tracks.empty:
         return faults, tracks
 
-    tracks["day_label"] = tracks["dt_start"].dt.strftime("%m-%d-%y")
+    tracks["day_label"] = tracks["dt_start"].dt.strftime("%m-%d-%Y")
+    tracks["day_dt"] = tracks["dt_start"].dt.date
     y1 = tracks["dt_start"].dt.hour + tracks["dt_start"].dt.minute.div(60)
     y2 = tracks["dt_end"].dt.hour + tracks["dt_end"].dt.minute.div(60)
 
@@ -496,10 +500,35 @@ def plot_fault_map(
         tracks = _merge_overlaps_per_sat_day(tracks)
         tracks = _filter_tracks_for_plot(tracks)
 
-    unique_days = sorted(set(
-        pd.Index(faults.get("day_label", pd.Series(dtype=str))).dropna().unique().tolist() +
-        pd.Index(tracks.get("day_label", pd.Series(dtype=str))).dropna().unique().tolist()
-    ))
+    # Build x-axis days in true chronological order (not string-sorted)
+    day_pairs = []
+    if "day_dt" in faults.columns and "day_label" in faults.columns:
+        day_pairs += list(zip(faults["day_dt"], faults["day_label"]))
+    if "day_dt" in tracks.columns and "day_label" in tracks.columns:
+        day_pairs += list(zip(tracks["day_dt"], tracks["day_label"]))
+
+    # Fallback (should be rare): parse labels if day_dt missing
+    if not day_pairs:
+        for lab in pd.Index(faults.get("day_label", pd.Series(dtype=str))).dropna().unique().tolist():
+            try:
+                day_pairs.append((datetime.strptime(lab, "%m-%d-%Y").date(), lab))
+            except Exception:
+                pass
+        for lab in pd.Index(tracks.get("day_label", pd.Series(dtype=str))).dropna().unique().tolist():
+            try:
+                day_pairs.append((datetime.strptime(lab, "%m-%d-%Y").date(), lab))
+            except Exception:
+                pass
+
+    # Deduplicate by label, keep earliest date if duplicates occur
+    best = {}
+    for d, lab in day_pairs:
+        if pd.isna(lab) or d is None:
+            continue
+        if lab not in best or d < best[lab]:
+            best[lab] = d
+
+    unique_days = [lab for (lab, _) in sorted(best.items(), key=lambda kv: kv[1])]
     day_to_x = {d: i for i, d in enumerate(unique_days)}
 
     fig, ax = plt.subplots(figsize=(12, 6), dpi=120)
