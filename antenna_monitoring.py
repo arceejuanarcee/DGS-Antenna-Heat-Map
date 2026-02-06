@@ -1493,6 +1493,16 @@ class HeatmapPanel(ttk.Frame):
 class CombinedApp(tk.Tk):
     def __init__(self):
         super().__init__()
+
+        # Set window icon (PNG) from ./graphics/PhilSA_v1-01.png
+        try:
+            icon_path = Path(__file__).resolve().parent / "graphics" / "PhilSA_v1-01.png"
+            if icon_path.exists():
+                self._app_icon = tk.PhotoImage(file=str(icon_path))
+                self.iconphoto(True, self._app_icon)
+        except Exception:
+            # Non-fatal: keep default Tk icon if loading fails
+            pass
         self.title("DGS Tools — Combined GUI (Mapper + Heatmap)")
         self.geometry("1360x900")
 
