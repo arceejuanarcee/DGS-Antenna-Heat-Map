@@ -71,6 +71,22 @@ ERROR_CODE_RE = re.compile(r"\bError\s*code\s*(?P<code>\d{3,6})\b", re.IGNORECAS
 # Helpers
 # =========================
 
+def _set_philsa_icon(root_tk):
+    """
+    Set window icon to ./graphics/PhilSA_v1-01.png (PNG).
+    Non-fatal if missing or unsupported (app still runs).
+    """
+    try:
+        base = Path(__file__).resolve().parent
+        icon_path = base / "graphics" / "PhilSA_v1-01.png"
+        if icon_path.exists():
+            img = tk.PhotoImage(file=str(icon_path))
+            root_tk.iconphoto(True, img)
+            # keep a reference so it doesn't get GC'ed
+            root_tk._philsa_icon_ref = img
+    except Exception:
+        pass
+
 def parse_dt(s):
     """Parse 'YYYY-MM-DD HH:MM:SS[.ffffff]'."""
     if "." in s:
@@ -304,6 +320,8 @@ def match_faults_to_metrics(metrics_df, faults, tolerance_sec):
 class App(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
+        _set_philsa_icon(self)
+
         self.title("Antenna Fault Frequency Heat Map (Az/El) — Error Code Only")
         self.geometry("1280x860")
 
@@ -699,7 +717,6 @@ class App(tk.Tk):
             cmap.set_bad("white")
         except Exception:
             pass
-
 
         self.ax.pcolormesh(
             T, R, H_flip,
