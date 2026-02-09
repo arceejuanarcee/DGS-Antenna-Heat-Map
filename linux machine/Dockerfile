@@ -3,29 +3,24 @@ FROM ubuntu:18.04
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /src
 
-# Basic deps + Tk + X11 libs needed by Tkinter/Matplotlib
+# System libs for Tkinter + Matplotlib runtime
 RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    wget ca-certificates \
-    tk \
-    python3-tk \
+    wget bzip2 ca-certificates \
     libx11-6 libxext6 libxrender1 libsm6 libice6 \
     libgl1-mesa-glx \
+    tk \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python 3.10 from deadsnakes (includes shared lib)
-RUN add-apt-repository -y ppa:deadsnakes/ppa && \
-    apt-get update && apt-get install -y \
-    python3.10 python3.10-venv python3.10-distutils python3.10-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Install Miniconda (comes with shared libpython)
+RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
+    bash /tmp/miniconda.sh -b -p /opt/conda && \
+    rm /tmp/miniconda.sh
 
-# Pip for Python 3.10
-RUN wget -q https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py && \
-    python3.10 /tmp/get-pip.py && \
-    rm /tmp/get-pip.py
+ENV PATH="/opt/conda/bin:$PATH"
 
-# Install python deps + pyinstaller
-RUN python3.10 -m pip install --no-cache-dir --upgrade pip && \
-    python3.10 -m pip install --no-cache-dir pyinstaller numpy pandas matplotlib
+# Create env with Tk + deps
+RUN conda install -y python=3.10 numpy pandas matplotlib tk pip && \
+    pip install --no-cache-dir pyinstaller && \
+    conda clean -afy
 
 CMD ["bash"]
