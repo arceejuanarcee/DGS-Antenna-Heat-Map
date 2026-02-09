@@ -1,0 +1,10 @@
+# Build outputs
+dist/
+build/
+*.spec
+
+# Python caches/venv
+__pycache__/
+*.pyc
+.venv/
+venv/
