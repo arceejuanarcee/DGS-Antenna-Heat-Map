@@ -11,14 +11,15 @@ RUN apt-get update && apt-get install -y \
     tk \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Miniconda (comes with shared libpython)
-RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
-    bash /tmp/miniconda.sh -b -p /opt/conda && \
-    rm /tmp/miniconda.sh
+# Install Miniforge3 (conda-forge) - older installer that works with glibc 2.27
+# Pinning to a known good release instead of "latest"
+RUN wget -q https://github.com/conda-forge/miniforge/releases/download/24.3.0-0/Miniforge3-24.3.0-0-Linux-x86_64.sh -O /tmp/miniforge.sh && \
+    bash /tmp/miniforge.sh -b -p /opt/conda && \
+    rm /tmp/miniforge.sh
 
 ENV PATH="/opt/conda/bin:$PATH"
 
-# Create env with Tk + deps
+# Create env with Tk + deps, then install PyInstaller
 RUN conda install -y python=3.10 numpy pandas matplotlib tk pip && \
     pip install --no-cache-dir pyinstaller && \
     conda clean -afy
