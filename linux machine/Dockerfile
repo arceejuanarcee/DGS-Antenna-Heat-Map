@@ -6,10 +6,12 @@ WORKDIR /src
 # System libs for Tkinter + Matplotlib runtime
 RUN apt-get update && apt-get install -y \
     wget bzip2 ca-certificates \
+    binutils \
     libx11-6 libxext6 libxrender1 libsm6 libice6 \
     libgl1-mesa-glx \
     tk \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Install Miniforge3 (conda-forge) - older installer that works with glibc 2.27
 # Pinning to a known good release instead of "latest"
