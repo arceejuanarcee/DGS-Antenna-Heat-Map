@@ -1117,6 +1117,7 @@ class HeatmapPanel(ttk.Frame):
         self.to_day_cb = ttk.Combobox(range_row, textvariable=self.to_day_var, state="readonly", width=6, values=[])
         self.to_day_cb.pack(side="left", padx=(4, 0))
 
+
         self._toggle_range_controls()
 
         # 3) Options
@@ -1156,16 +1157,13 @@ class HeatmapPanel(ttk.Frame):
         self.plot_frame.pack(fill="both", expand=True)
 
     def _toggle_range_controls(self):
-        enabled = self.use_range_var.get()
-        # Only enable range controls if month is not All
         if self.month_var.get() == "All":
-            enabled = False
-        state = "readonly" if enabled else "disabled"
-        try:
-            self.from_day_cb.configure(state=state)
-            self.to_day_cb.configure(state=state)
-        except Exception:
-            pass
+            state = "disabled"
+        else:
+            state = "readonly"
+
+        self.from_day_cb.configure(state=state)
+        self.to_day_cb.configure(state=state)
 
     def _build_plot(self):
         self.fig = plt.Figure(figsize=(7.5, 7.5), dpi=100)
@@ -1522,7 +1520,7 @@ class CombinedApp(tk.Tk):
         except Exception:
             # Non-fatal: keep default Tk icon if loading fails
             pass
-        self.title("DGS Tools — Combined GUI (Mapper + Heatmap)")
+        self.title("Ground Station Antenna Performance Analysis Tool")
         self.geometry("1360x900")
 
         nb = ttk.Notebook(self)
