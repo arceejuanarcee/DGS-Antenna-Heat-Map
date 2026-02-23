@@ -1,3 +1,4 @@
+# Author: Arcee T. Juan
 # Building the ELF Executable (Linux)
 
 This guide explains how to build the standalone ELF executable for the
@@ -5,7 +6,7 @@ This guide explains how to build the standalone ELF executable for the
 
 ------------------------------------------------------------------------
 
-## 1️⃣ Prerequisites
+## Prerequisites
 
 Make sure the target Linux machine has:
 
@@ -16,7 +17,7 @@ Make sure the target Linux machine has:
 
 ------------------------------------------------------------------------
 
-## 2️⃣ Create a Virtual Environment (Recommended)
+## Create a Virtual Environment (Recommended)
 
 ``` bash
 python3 -m venv venv
@@ -25,7 +26,7 @@ source venv/bin/activate
 
 ------------------------------------------------------------------------
 
-## 3️⃣ Install Required Python Packages
+## Install Required Python Packages
 
 Inside the virtual environment:
 
@@ -43,7 +44,7 @@ pip install numpy pandas matplotlib pillow
 
 ------------------------------------------------------------------------
 
-## 4️⃣ Build the ELF File
+## Build the ELF File
 
 From the project root (where your main script is located):
 
@@ -57,7 +58,7 @@ After completion, the executable will be located in:
 
 ------------------------------------------------------------------------
 
-## 5️⃣ Verify It Is an ELF File
+## Verify It Is an ELF File
 
 Run:
 
@@ -71,7 +72,7 @@ Expected output should include:
 
 ------------------------------------------------------------------------
 
-## 6️⃣ Run the Application
+## Run the Application
 
 From the terminal:
 
@@ -87,7 +88,7 @@ chmod +x dist/antenna_monitoring
 
 ------------------------------------------------------------------------
 
-## 7️⃣ Optional: Clean Previous Builds
+## Optional: Clean Previous Builds
 
 Before rebuilding:
 
