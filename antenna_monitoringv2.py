@@ -1030,6 +1030,11 @@ class HeatmapPanel(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)
 
+
+        self.use_range_var = tk.BooleanVar(value=False)
+        self.from_day_var = tk.StringVar(value="")
+        self.to_day_var = tk.StringVar(value="")
+
         self.root_dir: Optional[Path] = None
         self.events_dir: Optional[Path] = None
         self.metrics_dir: Optional[Path] = None
@@ -1100,8 +1105,6 @@ class HeatmapPanel(ttk.Frame):
         self.day_cb = ttk.Combobox(lf_date, textvariable=self.day_var, state="readonly", values=["All"])
         self.day_cb.pack(fill="x", pady=(0, 4))
 
-        self.from_date_var = tk.StringVar()
-        self.to_date_var = tk.StringVar()
         range_row = ttk.Frame(lf_date)
         range_row.pack(fill="x")
         self._range_row = range_row
@@ -1277,37 +1280,49 @@ class HeatmapPanel(ttk.Frame):
         month = self.month_var.get()
         day = self.day_var.get()
 
-    try:
-        start, end = date_range_from_selection(
-            year,
-            month,
-            day,
-            from_date_str=self.from_date_var.get(),
-            to_date_str=self.to_date_var.get(),
+        try:
+            start, end = date_range_from_selection(
+                year,
+                month,
+                day,
+                from_date_str=self.from_date_var.get(),
+                to_date_str=self.to_date_var.get(),
+            )
+        except ValueError as e:
+            messagebox.showerror("Invalid Date", str(e))
+            return
+
+        metrics_files, events_files = find_files_in_range(
+            self.metrics_dir, self.events_dir, start, end
         )
-    except ValueError as e:
-        messagebox.showerror("Invalid Date", str(e))
-
-
-        metrics_files, events_files = find_files_in_range(self.metrics_dir, self.events_dir, start, end)
 
         if not metrics_files:
-            messagebox.showwarning("No metrics", f"No metrics files found for range {start.date()} to {end.date()}.")
+            messagebox.showwarning(
+                "No metrics",
+                f"No metrics files found for range {start.date()} to {end.date()}."
+            )
             return
-        if not events_files:
-            messagebox.showwarning("No events", f"No events files found for range {start.date()} to {end.date()}.")
 
-        # Load metrics (skip invalid ones)
+        if not events_files:
+            messagebox.showwarning(
+                "No events",
+                f"No events files found for range {start.date()} to {end.date()}."
+            )
+
+        # Load metrics
         metrics_dfs = []
         skipped_metrics = []
 
         for p in metrics_files:
             try:
                 df = load_metrics_csv(p)
+
                 if df is None or df.empty:
                     skipped_metrics.append(p.name)
                     continue
+
                 metrics_dfs.append(df)
+
             except Exception:
                 skipped_metrics.append(p.name)
                 continue
@@ -1315,16 +1330,15 @@ class HeatmapPanel(ttk.Frame):
         if not metrics_dfs:
             messagebox.showerror(
                 "No valid metrics files",
-                "All metrics files were skipped.\n\n"
-                "Reason: No file contained a valid CSV header starting with 'Time'\n"
-                "and required az/el columns."
+                "All metrics files were skipped.\n"
+                "No valid CSV header with Time + az/el columns found."
             )
             return
 
         metrics = (
             pd.concat(metrics_dfs, ignore_index=True)
-              .sort_values("Time")
-              .reset_index(drop=True)
+            .sort_values("Time")
+            .reset_index(drop=True)
         )
 
         # Load coded faults
@@ -1339,10 +1353,8 @@ class HeatmapPanel(ttk.Frame):
         tol = int(self.tolerance_var.get())
         matched = match_faults_to_metrics(metrics, faults_all, tolerance_sec=tol)
 
-        # Plot
         self._style_axes()
 
-        # Reset click-inspection cache
         self._last_H = None
         self._last_az_edges = None
         self._last_el_edges = None
@@ -1360,12 +1372,15 @@ class HeatmapPanel(ttk.Frame):
         self.canvas.draw()
 
         extra = f" | Skipped metrics: {len(skipped_metrics)}" if skipped_metrics else ""
+
         self.status_var.set(
-            f"Range: {start.date()} to { (end - timedelta(days=1)).date() } | "
+            f"Range: {start.date()} to {(end - timedelta(days=1)).date()} | "
             f"Metrics files: {len(metrics_files)} (loaded {len(metrics_dfs)}){extra} | "
             f"Events files: {len(events_files)} | "
-            f"Coded faults: {len(faults_all)} | Matched: {len(matched)} (tol={tol}s)"
+            f"Coded faults: {len(faults_all)} | "
+            f"Matched: {len(matched)} (tol={tol}s)"
         )
+
         self.details_var.set("Click a heatmap cell to see details here.")
 
     def _plot_fault_points(self, matched: pd.DataFrame):
